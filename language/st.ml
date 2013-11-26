@@ -143,6 +143,31 @@ and tod = TIME_OF_DAY | TOD
 and time_of_day = (tod * _daytime)
 
 and _daytime = (day_hour * day_minute * day_second)
+and day_hour = integer
+and day_minute = integer
+and day_second = fixed_point
+
+and date = DATE | D | SD
+and date_literal = (year * month * day)
+and year = integer
+and month = integer
+and day = integer
+
+and date_and_time = DATE_AND_TIME | DT
+
+(* B.1.3 *)
+and data_type_name = 
+| NGTN of non_generic_type_name
+| GTN of generic_type_name
+
+and non_generic_type_name = non_generic * pointer_to option
+
+and non_generic = 
+| NG1 of _elementary_type_name
+| NG2 of derived_type_name
+
+(* B.1.3.1 *)
+
 
 and integer_type_name = 
 | SI of _signed_integer_type_name
