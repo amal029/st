@@ -184,7 +184,7 @@ let make_literal_subrange lo hi =
   {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
 
 let concat_leaf src op = 
-  if (match src.op with Some x -> x | None -> raise (Internal_error (("Source parse tree has type None: " 
+  if (match src.op with Some x -> x | None -> raise (Internal_error (("Source parse tree has type Opcode: " 
 								      ^ (to_string_hum (sexp_of_parse_tree src)))))) = op then src
   else 
     let ret = {op=Some op;result=None;n=0;elements=[];location=None} in
