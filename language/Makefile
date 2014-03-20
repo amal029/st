@@ -6,9 +6,9 @@ TYPECONV=`ocamlfind query type_conv`
 SEXPLIB=`ocamlfind query sexplib`
 BATDIR=`ocamlfind query batteries`
 
-all: systemj.cmxa
+all: stlang.cmxa
 
-systemj.cmxa: check
+stlang.cmxa: check
 	$(CC) $(OCMLOPTS) st.cmx -o $@
 
 check:
