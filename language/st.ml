@@ -1,8 +1,8 @@
 (* 
    Author: Avinash Malik
-   The IEC61131-3 Structured text language 
+   The IEC61131-3 Structured text language.
 Thu Mar 20 17:22:33 NZDT 2014
- *)
+*)
 
 open Sexplib.Std
 open Sexplib.Sexp
@@ -144,8 +144,7 @@ type parse_leaf = {
 
 let add_leaf dest src = 
   dest.n <- dest.n + 1;
-  let src_t = (function Some x -> x.t | None -> raise (Internal_error (("Source parse tree has type None: " 
-									^ (to_string_hum (sexp_of_parse_tree src)))))) src.result in
+  let src_t = (function Some x -> x.t | None -> None ) src.result in
   let toadd = {t=src_t;leaf_type=Some TREE_LEAF;leaf=Some src;
 	      leaf_data=None; literal_string=None;id=None;
 	      buff=None} in

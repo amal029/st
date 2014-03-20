@@ -16,22 +16,162 @@
    (mypos.Lexing.pos_lnum,cnum)
 %}
 
-/* These are the declarations */
-
-/* The tokens */
-/* Constant constructors */
-%token TPlus TMinus TTimes TDiv TPow TOP TSEMICOLON TCP TEqual TOB TCB TComma TLess TLessEqual TGreater TGreaterEqual TEqualEqual TMod TASYNC
-%token And Or Where TXCL TQ TSuspend TAbort TWhile TTrue TFalse TWhile TTrap TXor
-%token TLbrack TRbrack TColon TPresent TEof TLShift TRShift TElse TExit TEmit TCase TWeak
-%token TMain TIn TOut TOtherwise TPar TFor TSignal TChannel TPause TColon
-%token TInt8 TInt16 TInt32 TInt64 TInt8s TInt16s TInt32s TInt64s TFloat8 TFloat32 TFloat64 TFloat16 TInt1s
-%token TAwait Timm TExtern TSplit TAT TSend TReceive TNotEqual TOpPlus TOpTimes TBegin TEnd THash TDo TSEMISEMI
-
 /* Constructors with an argument */
-%token <string> TInt
-%token <string> TFloat
-%token <string> TEscapedCode
-%token <string> TSymbol
+%token <int> Integer Binary_integer Octal_integer Hex_integer
+%token <float> Real_literal Duration Time_of_day Date Date_and_time
+%token <string> Character_string
+%token <string> IDENTIFIER
+%token <string> Simple_type_name Subrange_type_name Enumerated_type_name
+%token <string> Array_type_name Structure_type_name String_type_name Variable_name 
+%token <string> Global_var_name Fb_name
+%token <string> Oper_exp Oper_ne Oper_le Oper_ge
+
+/* Constant constructors */
+%token ACTION
+%token ADD
+%token AND
+%token ANDN
+%token ARRAY
+%token AT
+%token BOOL
+%token BY
+%token BYTE
+%token CAL
+%token CALC
+%token CALCN
+%token CASE
+%token CD
+%token CLK
+%token CONCAT
+%token CONSTANT
+%token CONFIGURATION
+%token CTU
+%token CTD
+%token CTUD
+%token CU
+%token DATE
+%token DATE_AND_TIME
+%token DINT
+%token DIV
+%token DO
+%token DWORD
+%token END_ACTION
+%token END_CONFIGURATION
+%token END_CASE
+%token END_FOR
+%token END_FUNCTION
+%token END_FUNCTION_BLOCK
+%token END_PROGRAM
+%token END_REPEAT
+%token END_STEP
+%token END_TYPE
+%token END_RESOURCE
+%token END_STRUCT
+%token END_TRANSITION
+%token END_VAR
+%token END_WHILE
+%token END_IF
+%token ELSE
+%token ELSIF
+%token EQ
+%token EXIT
+%token EXPT
+%token F_EDGE
+%token F_TRIG
+%token FALSE
+%token FOR
+%token FROM
+%token FUNCTION
+%token FUNCTION_BLOCK
+%token GE
+%token GT
+%token IF
+%token IN
+%token INSERT
+%token INT
+%token INITIAL_STEP
+%token INTERVAL
+%token JMP
+%token JMPC
+%token JMPCN
+%token LD
+%token LDN
+%token LE
+%token LIMIT
+%token LT
+%token LINT
+%token LREAL
+%token LWORD
+%token MAX
+%token MIN
+%token MOD
+%token MOVE
+%token MUL
+%token MUX
+%token NE
+%token NOT
+%token OF
+%token ON
+%token OR
+%token ORN
+%token PROGRAM
+%token PRIORITY
+%token PT
+%token PV
+%token R_EDGE
+%token R_TRIG
+%token R1
+%token READ_ONLY
+%token READ_WRITE
+%token REAL
+%token REPEAT
+%token RESOURCE
+%token RET
+%token RETAIN
+%token RETC
+%token RETCN
+%token RETURN
+%token RS
+%token S1
+%token SEL
+%token SINGLE
+%token SINT
+%token SQRT
+%token SR
+%token ST
+%token STEP
+%token STN
+%token STRING
+%token STRUCT
+%token SUB
+%token TASK
+%token THEN
+%token TIME
+%token TIME_OF_DAY
+%token TO
+%token TOF
+%token TON
+%token TP
+%token TRANSITION
+%token TRUE
+%token TYPE
+%token UDINT
+%token UINT
+%token ULINT
+%token UNTIL
+%token USINT
+%token VAR
+%token VAR_ACCESS
+%token VAR_EXTERNAL
+%token VAR_GLOBAL
+%token VAR_IN_OUT
+%token VAR_INPUT
+%token VAR_OUTPUT
+%token WHILE
+%token WITH
+%token WORD
+%token XOR
+%token XORN
 
 /* operator associative rules */
 %left TRShift TLShift
@@ -44,228 +184,324 @@
 %nonassoc TUminus /* useful for difference between -2 and 1 - 2*/
 
 /* The start of the parsing function */
-%start ast
-%type <St.ast> ast
+%start start
+%type <St.parse_tree> start
 
 %%
 /* These are the parsing rules */
 
-ast:
-    | topstmtlist TEof {Systemj.Apar($1,ln())}
+start:
+    | TEof {St.make_noop}
+    | function_block_declaration TEof {$1}
 ;
 
-topstmtlist:
-    | topstmtlist TASYNC stmt {$3::$1}
-    | stmt {[$1]}
+constant:
+    | numeric_literal {$1}
+    | '"' IDENTIFIER '"' {St.make_literal_string $2}
 ;
 
-stmtlist:
-    | stmtlist stmt {$2::$1}
-    | stmt {[$1]}
+numeric_literal:
+    | integer_literal {$1}
+    | TFloat {St.make_literal_real $1 St.BM_ANY_REAL} /*This is the real_literal, only float type are supported for now!*/
+    | TRUE {
+	  let res = {St.t=Some St.BM_BOOL;St.leaf_type=Some St.LITERAL_INTEGER; St.literal_string= Some "1"; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.ST_CASE_ELEMENT); St.elements=[];St.result=res;St.n=0;St.location=ln()}}
+    | FALSE 
+	{
+	  let res = {St.t=Some St.BM_BOOL;St.leaf_type=Some St.LITERAL_INTEGER; St.literal_string= Some "0"; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.ST_CASE_ELEMENT); St.elements=[];St.result=res;St.n=0;St.location=ln()}}
 ;
 
-stmt:
-    | signal TSEMICOLON {$1}
-    | typed_signal TSEMICOLON {$1}
-    | channel TSEMICOLON {$1}
-    | typed_channel TSEMICOLON {$1}
-    | TOB stmtlist TCB {Systemj.Block ($2, ln())}
-    | par {$1}
-    | present {$1}
-    | abort {$1}
-    | await TSEMICOLON {$1}
-    | suspend {$1}
-    /*| TExit TOP symbol TCP TSEMICOLON {Systemj.Exit($3,ln())}*/
-    | TEmit symbol TSEMICOLON {Systemj.Emit($2,None,ln())}
-    | TPause TSEMICOLON {Systemj.Pause(None,ln(),None)}
-    | symbol TColon TPause TSEMICOLON {Systemj.Pause(Some (match $1 with Systemj.Symbol (x,_) -> x),ln(),None)}
-    | send TSEMICOLON {$1}
-    | receive TSEMICOLON {$1}
-    | twhile {$1}
-    | dataStmts {Systemj.Data ($1,None)}
-    /*| trap {$1}*/
+integer_literal:
+    | signed_integer {$1}
 ;
 
-typed_signal:
-    | dataTypes signal TOpPlus TEqual TInt {Systemj.add_type_and_operator_to_signal $1 Systemj.OpPlus $5 $2 }
-    | dataTypes signal TOpTimes TEqual TInt {Systemj.add_type_and_operator_to_signal $1 Systemj.OpTimes $5 $2}
+signed_integer:
+    | TInt {St.make_literal_int $1}
+    | '+' TInt {St.make_literal_int $2}
+    | '-' TInt {St.make_literal_int ("-" ^ $2)}
 ;
 
-signal:
-    | TIn TSignal symbol {Systemj.Signal(None,Some Systemj.Input, $3, ln())}
-    | TOut TSignal symbol {Systemj.Signal(None,Some Systemj.Output, $3, ln())}
-    | TSignal symbol {Systemj.Signal(None,None, $2, ln())}
+elementary_type_name:
+    | numeric_type_name {$1}
+    | date_type_name {$1}
+    | STRING {
+	  let res = {St.t=Some St.BM_STRING;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | TIME {
+	  let res = {St.t=Some St.BM_TIME;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | bit_string_type_name {$1}
 ;
 
-typed_channel:
-    | dataTypes channel TEqual TInt {Systemj.add_type_and_operator_to_channel $1 Systemj.OpPlus $4 $2}
+numeric_type_name:
+    | integer_type_name {$1}
+    | real_type_name {$1}
 ;
 
-channel:
-    | TIn TChannel symbol {Systemj.Channel(None,Systemj.Input, $3, ln())}
-    | TOut TChannel symbol {Systemj.Channel(None,Systemj.Output, $3, ln())}
-
-par:
-    | stmt Or Or stmt {Systemj.Spar([$4;$1],ln())}
+integer_type_name:
+    | signed_integer_type_name {$1}
+    | unsigned_integer_type_name {$1}
 ;
 
-await:
-    | TAwait TOP expr TCP {Systemj.Abort($3,Systemj.While(Systemj.True,Systemj.Pause(None ,ln(),None),ln()),ln())}
-    | TAwait TOP Timm expr TCP {Systemj.Present($4,Systemj.Noop,
-						Some (Systemj.Abort($4,Systemj.While(Systemj.True,Systemj.Pause(None ,ln(),None),ln()),ln())),ln())}
-    | symbol TColon TAwait TOP expr TCP {Systemj.Abort($5,Systemj.While(Systemj.True,Systemj.Pause(Some (match $1 with Systemj.Symbol (x,_) -> x)
-												      ,ln(),None),ln()),ln())}
+signed_integer_type_name:
+    | SINT {
+	  let res = {St.t=Some St.BM_SINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | INT {
+	  let res = {St.t=Some St.BM_INT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | DINT {
+	  let res = {St.t=Some St.BM_DINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | LINT {
+	  let res = {St.t=Some St.BM_LINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
 ;
 
-send:
-    | symbol TXCL {Systemj.Send($1,ln())}
+unsigned_integer_type_name:
+    | USINT {
+	  let res = {St.t=Some St.BM_USINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | UINT {
+	  let res = {St.t=Some St.BM_UINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | UDINT {
+	  let res = {St.t=Some St.BM_UDINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | ULINT {
+	  let res = {St.t=Some St.BM_ULINT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
 ;
 
-receive:
-    | symbol TQ  {Systemj.Receive($1,ln())}
+real_type_name:
+    | REAL {
+	  let res = {St.t=Some St.BM_REAL;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | LREAL {
+	  let res = {St.t=Some St.BM_LREAL;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
 ;
 
-/*trap:
-    | TTrap TOP symbol TCP stmt {Systemj.Trap($3,$5,ln())}
-;*/
-
-suspend:
-    | TSuspend TOP Timm expr TCP stmt {Systemj.Block([Systemj.Abort($4,Systemj.While(Systemj.True,Systemj.Pause(None ,ln(),None),ln()),ln());
-						      Systemj.Suspend($4,$6,ln())],ln())}
-    | TSuspend TOP expr TCP stmt {Systemj.Suspend($3,$5,ln())}
-    | TWeak TSuspend TOP expr TCP stmt {Systemj.Suspend($4,$6,ln())}
-    | TWeak TSuspend TOP Timm expr TCP stmt {
-      Systemj.Block([Systemj.Present($5,Systemj.Block([PropositionalLogic.surface $7;
-						       Systemj.Abort($5,Systemj.While(Systemj.True,Systemj.Pause(None ,ln(),None),ln()),ln())],ln()),
-				     None,ln());Systemj.Suspend($5,$7,ln())],ln())}
-;
-abort:
-    | TAbort TOP Timm expr TCP stmt {Systemj.Present($4,Systemj.Noop,Some (Systemj.Abort($4,$6,ln())),ln())}
-    | TAbort TOP expr TCP stmt {Systemj.Abort($3,$5,ln())}
-    | TWeak TAbort TOP expr TCP stmt {Systemj.Abort($4,$6,ln())}
-    | TWeak TAbort TOP Timm expr TCP stmt {Systemj.Present($5,PropositionalLogic.surface $7, Some(Systemj.Abort($5,$7,ln())), ln())}
+date_type_name:
+    | DATE {
+	  let res = {St.t=Some St.BM_DATE;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | TIME_OF_DAY {
+	  let res = {St.t=Some St.BM_TOD;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | DATE_AND_TIME {
+	  let res = {St.t=Some St.BM_DT;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
 ;
 
-present:
-    | TPresent TOP expr TCP stmt {Systemj.Present($3,$5,None,ln())}
-    | TPresent TOP expr TCP stmt TElse stmt {Systemj.Present($3,$5,Some $7,ln())}
+bit_string_type_name:
+    | BOOL {
+	  let res = {St.t=Some St.BM_BOOL;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | BYTE {
+	  let res = {St.t=Some St.BM_BYTE;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | WORD {
+	  let res = {St.t=Some St.BM_WORD;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | DWORD {
+	  let res = {St.t=Some St.BM_DWORD;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
+    | LWORD {
+	  let res = {St.t=Some St.BM_LWORD;St.leaf_type=None; St.literal_string= None; St.leaf=None;
+		     St.id=None; St.buff=None; St.leaf_data=None} in
+	  {St.op = Some (St.TYPE_DEF); St.elements=[];St.result=res;St.n=0;St.location=ln()}
+	}
 ;
 
-twhile:
-    | TWhile stmt {Systemj.While(Systemj.True ,$2,ln())}
+derived_type_name:
+    | simple_type_name {$1}
 ;
 
-expr:
-    | symbol {Systemj.Esymbol($1,ln(),None)}
-    | TXCL expr {Systemj.Not($2,ln())}
-    | expr Or Or expr {Systemj.Or($1,$4,ln())}
-    | expr And And expr {Systemj.And($1,$4,ln())}
-    | TOP expr TCP {Systemj.Brackets($2,ln())}
-    | relDataExpr {Systemj.DataExpr ($1)}
+simple_type_name:
+    | IDENTIFIER {St.make_literal_id $1}
 ;
 
-/*All the data expressions/statements */
-relDataExpr:
-    | simpleDataExpr TLess simpleDataExpr {Systemj.LessThan($1,$3, ln())}
-    | simpleDataExpr TNotEqual simpleDataExpr {Systemj.NotEqualTo($1,$3, ln())}
-    | simpleDataExpr TLessEqual simpleDataExpr {Systemj.LessThanEqual($1,$3, ln())}
-    | simpleDataExpr TGreater simpleDataExpr {Systemj.GreaterThan($1,$3, ln())}
-    | simpleDataExpr TGreaterEqual simpleDataExpr {Systemj.GreaterThanEqual($1,$3, ln())}
-    | simpleDataExpr TEqualEqual simpleDataExpr {Systemj.EqualTo($1,$3, ln())}
+simple_spec_init:
+    | simple_specification {
+	  let ret = {St.op = Some (St.TYPE_SPEC); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in
+	  let () = St.add_leaf ret (St.make_noop) in ret
+	}
+    | simple_specification ':' '=' constant {
+			     let ret = {St.op = Some (St.TYPE_SPEC); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+			     let () = St.add_leaf ret $1 in
+			     let () = St.add_leaf ret $4 in ret
+			   }
 ;
 
-dataStmts:
-    | TOB TCB {Systemj.RNoop}
-    | TSEMICOLON {Systemj.RNoop}
-    | allsym TEqual simpleDataExpr TSEMICOLON {Systemj.Assign($1,$3, ln())}
-    | TFor TOP symbol TColon colonExpr TCP dataStmts {Systemj.For($3,$5,$7,None,ln())}
-    | doblock TFor TOP symbol TColon colonExpr TCP TSEMICOLON {Systemj.For($4,$6,$1,None,ln())}
-    | case {Systemj.CaseDef ($1, ln())}
+simple_specification:
+    | elementary_type_name {$1}
+    | simple_type_name {$1}
 ;
 
-doblock:
-    | TDo TOB datastmtlist TCB {Systemj.DataBlock ($3, ln())}
+subrange_spec_init:
+    | subrange_specification {
+	  let ret = {St.op = Some (St.TYPE_SPEC); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in
+	  let () = St.add_leaf ret (St.make_noop) in ret
+	}
+    | subrange_specification ':' '=' signed_integer {
+			       let ret = {St.op = Some (St.TYPE_SPEC); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+			       let () = St.add_leaf ret $1 in
+			       let () = St.add_leaf ret $4 in ret
+			     }
 ;
 
-case:
-    | TCase TOB caseclauselist otherwise TCB {Systemj.Case($3,$4,ln())}
-;
-caseclauselist:
-    | caseclauselist caseclause {$2::$1}
-    | caseclause {[$1]}
-;
-caseclause:
-    | TOP expr TCP dataStmts {Systemj.Clause ($2,$4,ln())}
-    | TOP expr TCP doblock {Systemj.Clause ($2,$4,ln())}
-;
-otherwise:
-    | TOtherwise dataStmts {Systemj.Otherwise ($2,ln())}
-    | TOtherwise doblock {Systemj.Otherwise ($2,ln())}
+subrange_specification:
+    | integer_type_name '(' subrange ')' {
+			  let ret = {St.op = Some (St.TYPE_SPEC_SUBRANGE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+			  let () = St.add_leaf ret $1 in
+			  let () = St.add_leaf ret $3 in ret
+			}
+    | subrange_type_name {
+	  let ret = {St.op = Some (St.TYPE_SPEC_SUBRANGE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in
+	  let () = St.add_leaf ret (St.make_noop) in ret
+	}
 ;
 
-datastmtlist:
-    | datastmtlist dataStmts {$2::$1}
-    | dataStmts {[$1]}
+subrange:
+    | signed_integer '.' '.' signed_integer {St.make_literal_subrange $1 $4}
 ;
 
-colonExpr:
-    | const TColon const TColon simpleDataExpr {Systemj.ColonExpr($1,$3,$5, ln())}
+case_statement:
+    | CASE expression OF case_elements END_CASE {
+	     let ret = {St.op = Some (St.ST_CASE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	     let () = St.add_leaf ret $1 in
+	     let () = St.add_leaf ret (St.make_noop) in
+	     let () = St.add_leaf ret $4 in ret
+	   }
+    | CASE expression OF case_elements ELSE statement_list END_CASE 
+	   {
+	     let ret = {St.op = Some (St.ST_CASE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	     let () = St.add_leaf ret $1 in
+	     let () = St.add_leaf ret $2 in
+	     let () = St.add_leaf ret $4 in ret
+	   }
 ;
 
-allsym:
-    | symbol {Systemj.AllSymbol($1)}
-    | varsymbol {Systemj.AllTypedSymbol ($1)}
-    | signal_data {$1}
+case_elements:
+    | case_list ':' statement_list {
+		  let ret = {St.op = Some (St.ST_CASE_ELEMENT); St.elements=[];St.result=None;St.n=0;St.location=ln()}in 
+		  let () = St.add_leaf ret $1 in
+		  let () = St.add_leaf ret $3 in ret
+		}
+    | case_elements case_list ':' statement_list {St.add_leaf $1 $2; St.add_leaf $1 $4}
 ;
 
-varsymbol:
-    | dataTypes symbol {Systemj.SimTypedSymbol ($1, $2, ln())}
+case_list:
+    | subrange {
+	  let ret = {St.op = Some (St.ST_CASE_LIST); St.elements=[$1];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in ret
+	}
+    | signed_integer {
+	  let ret = {St.op = Some (St.ST_CASE_LIST); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in ret
+	}
+    | case_list ',' subrange {St.add_leaf $1 $3}
+    | case_list ',' signed_integer {St.add_leaf $1 $3}
 ;
 
-signal_data:
-    | TQ symbol {Systemj.AllSignalorChannelSymbol $2}
+iteration_statement:
+    | for_statement {$1}
+    | while_statement {$1}
+    | repeat_statement {$1}
+    | exit_statement {$1}
 ;
 
-simpleDataExpr:
-    | simpleDataExpr TPlus simpleDataExpr {Systemj.Plus ($1, $3, ln())}
-    | simpleDataExpr TMinus simpleDataExpr {Systemj.Minus ($1, $3, ln())}
-    | simpleDataExpr TMod simpleDataExpr {Systemj.Mod ($1, $3, ln())}
-    | simpleDataExpr TTimes simpleDataExpr {Systemj.Times ($1, $3, ln())}
-    | simpleDataExpr TPow simpleDataExpr {Systemj.Pow ($1, $3, ln())}
-    | simpleDataExpr TDiv simpleDataExpr {Systemj.Div ($1, $3, ln())}
-    | simpleDataExpr TRShift simpleDataExpr {Systemj.Rshift ($1, $3, ln())}
-    | simpleDataExpr TLShift simpleDataExpr {Systemj.Lshift ($1, $3, ln())}
-    | TQ symbol {Systemj.SignalOrChannelRef($2, ln())}
-    | symbol {Systemj.VarRef ($1, ln())}
-    | TOP dataTypes TCP simpleDataExpr {Systemj.Cast ($2,$4,ln())}
-    | TMinus simpleDataExpr %prec TUminus {Systemj.Opposite($2,ln())}
-    | const {$1}
-    | TExtern symbol TOP simpleDataExpr_list TCP {Systemj.Call ($2,$4,ln())}
-    | TExtern symbol TOP TCP {Systemj.Call ($2,[],ln())}
+for_statement:
+    | FOR simple_type_name ':' '=' expression TO expression DO statement_list END_FOR
+	  {
+	    let lit_int = {St.t=Some St.BM_ANY_INT;St.leaf_type=St.LITERAL_INTEGER;St.leaf=None;St.literal_string=Some "1";St.id=None;St.buff=None} in
+	    let ret = {St.op = Some (St.ST_FOR_LOOP); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $2 in
+	    let () = St.add_leaf ret $5 in
+	    let () = St.add_leaf ret $7 in
+	    let () = St.add_leaf ret lit_int in
+	    let () = St.add_leaf ret $9 in
+	    ret
+	  }
+    | FOR simple_type_name ':' '=' expression TO expression BY expression DO statement_list ENF_FOR
+	  {
+	    let ret = {St.op = Some (St.ST_FOR_LOOP); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $2 in
+	    let () = St.add_leaf ret $5 in
+	    let () = St.add_leaf ret $7 in
+	    let () = St.add_leaf ret $9 in
+	    let () = St.add_leaf ret $11 in
+	    ret
+	  }
 ;
 
-simpleDataExpr_list:
-    | simpleDataExpr TComma simpleDataExpr_list { $1::$3 }
-    | simpleDataExpr { [$1] }
+while_statement:
+    | WHILE expression DO statement_list END_WHILE
+	    {
+	      let ret = {St.op = Some (St.ST_WHILE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	      let () = St.add_leaf ret $2 in
+	      let () = St.add_leaf ret $4 in
+	      ret
+	    }
 ;
 
-const:
-    | TInt {Systemj.Const (Systemj.Int32s,$1, ln())} /*e.g: 8, the type should be found using type inference, what now??*/
+repeat_statement:
+    | REPEAT statement_list UNTIL expression END_REPEAT 
+	     {
+	       let ret = {St.op = Some (St.ST_REPEAT); St.elements=[];St.result=None;St.n=0;St.location=ln()}  in
+	       let () = St.add_leaf ret $2 in
+	       let () = St.add_leaf ret $4 in
+	       ret
+	     }
 ;
 
-/*bool_expr:
-    | TTrue {Systemj.True}
-    | TFalse {Systemj.False}
-;*/
-
-symbol:
-    | TSymbol {Systemj.Symbol ($1, ln())} /*e.g.: t*/
-;
-
-dataTypes:
-    | TInt8s {Systemj.Int8s}
-    | TInt16s {Systemj.Int16s}
-    | TInt32s {Systemj.Int32s}
+exit_statement:
+    | EXIT {{St.op = Some (St.ST_EXIT); St.elements=[];St.result=None;St.n=0;St.location=ln()}}
 ;
 
 %%

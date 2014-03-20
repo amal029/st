@@ -1,6 +1,6 @@
 CC=ocamlopt -annot -g
 PARSERLIB=parser.cmxa
-LANGUAGELIB=systemj.cmxa
+LANGUAGELIB=stlang.cmxa
 ERRORLIB=error.cmxa
 
 all: compile
