@@ -27,6 +27,10 @@
 %token <string> Oper_exp Oper_ne Oper_le Oper_ge
 
 /* Constant constructors */
+%token OPER_NE
+%token OPER_LE
+%token OPER_GE
+%token OPER_EXP
 %token ACTION
 %token ADD
 %token AND
@@ -410,6 +414,207 @@ subrange_specification:
 subrange:
     | signed_integer '.' '.' signed_integer {St.make_literal_subrange $1 $4}
 ;
+
+enumerated_spec_init:
+    | '(' enum_spec_10 ')' {
+	    let ret = {St.op = Some (St.TYPE_SPEC_ENUM); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $2 in ret
+	  }
+    | enumerated_type_name {
+	    let ret = {St.op = Some (St.TYPE_SPEC); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $1 in ret
+	    let () = St.add_leaf ret (St.make_noop) in ret
+	}
+;
+
+enum_spec_10:
+    | simple_type_name {
+	    let ret = {St.op = Some (St.TYPE_SPEC_ENUM_LIST); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $1 in ret
+	}
+    | enum_spec_10 ',' simple_type_name {
+		     let () = St.add_leaf $1 $3 in $1
+		   }
+;
+
+symbolic_variable:
+    | simple_type_name {$1}
+    | multi_element_variable {$1}
+;
+
+multi_element_variable:
+    | array_variable {$1}
+    | structured_variable {$1}
+;
+
+array_variable:
+    | subscripted_variable '[' subscript_list ']' {
+			     let ret = {St.op = Some (St.VARIABLE_ARRAY); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+			     let () = St.add_leaf ret $1 in 
+			     let () = St.add_leaf ret $3 in ret
+			   }
+;
+
+subscripted_variable:
+    | symbolic_variable {$1}
+;
+
+subscript_list:
+    | subscript {
+	  let ret = {St.op = Some (St.VARIABLE_ARRAY_SUBSCRIPT); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	  let () = St.add_leaf ret $1 in ret
+	}
+    | subscript_list ',' subscript {let () = St.add_leaf $1 $3 in $1}
+;
+
+subscript : 
+    | expression {$1}
+;
+
+structured_variable:
+    | symbolic_variable '.' simple_type_name {
+			  let ret = {St.op = Some (St.VARIABLE_STRUCT_ELEMENT); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+			  let () = St.add_leaf ret $1 in 
+			  let () = St.add_leaf ret $3 in ret
+			}
+;
+
+/* TODO: Put the input declaration unto expressions here*/
+
+expression:
+    | xor_expression {$1}
+    | expression OR xor_expression {
+		   let () = St.concat_leaf $1 (St.EXPR_XOR) in
+		   let () = St.add_leaf $1 $3 in $1
+		 }
+;
+
+xor_expression:
+    | xor_expression XOR and_expression {
+		       let () = St.concat_leaf $1 (St.EXPR_XOR) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+;
+
+and_expression:
+    | and_expression '&' comparison {
+		       let () = St.concat_leaf $1 (St.EXPR_AND) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+    | and_expression AND comparison {
+		       let () = St.concat_leaf $1 (St.EXPR_AND) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+;
+
+comparison:
+    | equ_expression {$1}
+    | comparison '=' equ_expression {
+		   let () = St.concat_leaf $1 (St.EXPR_EQ) in
+		   let () = St.add_leaf $1 $3 in $1
+		 }
+    | comparison OPER_NE equ_expression {
+		   let () = St.concat_leaf $1 (St.EXPR_NE) in
+		   let () = St.add_leaf $1 $3 in $1
+		 }
+;
+
+equ_expression:
+    | equ_expression '<' add_expression {
+		       let () = St.concat_leaf $1 (St.EXPR_LT) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+    | equ_expression '>' add_expression {
+		       let () = St.concat_leaf $1 (St.EXPR_GT) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+    | equ_expression OPER_LE add_expression {
+		       let () = St.concat_leaf $1 (St.EXPR_LE) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+    | equ_expression OPER_GE add_expression {
+		       let () = St.concat_leaf $1 (St.EXPR_GE) in
+		       let () = St.add_leaf $1 $3 in $1
+		     }
+
+;
+
+add_expression:
+    | term {$1}
+    | add_expression '+' term {
+		   let () = St.concat_leaf $1 (St.EXPR_ADD) in
+		   let () = St.add_leaf $1 $3 in $1
+		     }
+    | add_expression '-' term {
+		   let () = St.concat_leaf $1 (St.EXPR_SUB) in
+		   let () = St.add_leaf $1 $3 in $1
+		     }
+;
+
+term:
+    | power_expression {$1}
+    | term '*' power_expression {
+		   let () = St.concat_leaf $1 (St.EXPR_MUL) in
+		   let () = St.add_leaf $1 $3 in $1
+	   }
+    | term '/' power_expression {
+	     let () = St.concat_leaf $1 (St.EXPR_DIV) in
+	     let () = St.add_leaf $1 $3 in $1
+	   }
+    | term MOD power_expression {
+	     let () = St.concat_leaf $1 (St.EXPR_MOD) in
+	     let () = St.add_leaf $1 $3 in $1
+	   }
+;
+
+power_expression:
+    | unary_expression {$1}
+    | power_expression OPER_EXP unary_expression {
+			 let () = St.concat_leaf $1 (St.EXPR_POW) in
+			 let () = St.add_leaf $1 $3 in $1
+		       }
+;
+
+unary_expression:
+    | primary_expression {$1}
+    | '-' primary_expression {
+	    let ret = {St.op = Some (St.EXPR_UNARY); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $2 in ret
+	  }
+    | NOT primary_expression {
+	    let ret = {St.op = Some (St.EXPR_NOT); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+	    let () = St.add_leaf ret $2 in ret
+	  }
+;
+
+primary_expression:
+    | constant {$1}
+    | variable {$1}
+    | '(' expression ')' {$2}
+    | function_name '(' ')' {
+		      let ret = {St.op = Some (St.FUNC_CALL); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+		      let () = St.add_leaf ret $1 in 
+		      let () = St.add_leaf ret (St.make_noop) in ret
+		    }
+    | function_name '(' fb_input_assignments ')' {
+		      let ret = {St.op = Some (St.FUNC_CALL); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+		      let () = St.add_leaf ret $1 in 
+		      let () = St.add_leaf ret $3 in ret
+		    }
+    | simple_type_name '.' simple_type_name {
+		      let ret = {St.op = Some (St.FB_VARIABLE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+		      let () = St.add_leaf ret $1 in 
+		      let () = St.add_leaf ret $3 in ret
+	      }
+    | fb_name '.' variable {
+		      let ret = {St.op = Some (St.FB_VARIABLE); St.elements=[];St.result=None;St.n=0;St.location=ln()} in
+		      let () = St.add_leaf ret $1 in 
+		      let () = St.add_leaf ret $3 in ret
+	      }
+;
+
+/* TODO: Add the statement list part here*/
+
 
 case_statement:
     | CASE expression OF case_elements END_CASE {

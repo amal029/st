@@ -42,9 +42,16 @@ type data_type =
 
 type op_code =
   | EXPR_ADD
+  | EXPR_SUB
+  | EXPR_DIV
+  | EXPR_MOD
   | EXPR_AND
-  | EXPR_CMP1
-  | EXPR_CMP2
+  | EXPR_NE
+  | EXPR_EQ
+  | EXPR_LT
+  | EXPR_GT
+  | EXPR_LE
+  | EXPR_GE
   | EXPR_MUL	
   | EXPR_NOT
   | EXPR_OR

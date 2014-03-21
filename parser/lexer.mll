@@ -9,6 +9,10 @@ rule lexer = parse
   | '\n' {let () = new_line lexbuf in lexer lexbuf}
   | ['0'-'9']+ {Parser.TInt (lexeme lexbuf)} (* an integer *)
   | ['0'-'9']+'.'['0'-'9']+ {Parser.TFloat (lexeme lexbuf)} (* a floating number *)
+  | "<>" {Parser.OPER_NE}
+  | "<=" {Parser.OPER_LE}
+  | ">=" {Parser.OPER_GE}
+  | "**" {Parser.OPER_EXP}
   | ['A'-'Z' 'a'-'z']['A'-'Z' 'a'-'z' '0'-'9' '_']* {Parser.IDENTIFIER (lexeme lexbuf)} (* any identifier a letter followed by anything, except a '$' sign*)
   | "(*" {comment 1 lexbuf} (* start of a comment *)
   | _  {lexer lexbuf} (* leave anything else *)
