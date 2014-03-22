@@ -149,6 +149,11 @@ type parse_leaf = {
  } with sexp
 
 
+(* TODO *)
+(* let add_variable *)
+(* let funcblk_type id *)
+(* let add_variables *)
+
 let add_leaf dest src = 
   dest.n <- dest.n + 1;
   let src_t = (function Some x -> x.t | None -> None ) src.result in
@@ -157,20 +162,21 @@ let add_leaf dest src =
 	      buff=None} in
   dest.elements <- dest.elements @ [toadd]
 
-(* TODO let transfer_leaf dest src =  *)
-(* TODO Need to write all the add functions and then we are done *)
+let transfer_leaf dest src =
+  dest.n <- dest.n + src.n;
+  dest.elements <- dest.elements @ src.elements
 
 let make_noop = 
   {op=Some NOOP;result=None;n=0;elements=[];location=None}
 
 let make_literal_int s = 
-  let result = {t=Some BM_ANY_INT;leaf_type=Some LITERAL_INTEGER;leaf_data=Some (Int s);leaf=None;
+  let result = {t=Some BM_ANY_INT;leaf_type=Some LITERAL_INTEGER;leaf_data=Some (Int (int_of_string s));leaf=None;
 	       literal_string=None; id=None; buff=None} in
   {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
 
 
 let make_literal_real s idt = 
-  let result = {t=Some idt;leaf_type=Some LITERAL_REAL;leaf_data=Some (Real s);leaf=None;
+  let result = {t=Some idt;leaf_type=Some LITERAL_REAL;leaf_data=Some (Real (float_of_string s));leaf=None;
 	       literal_string=None; id=None; buff=None} in
   {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
 
@@ -184,10 +190,16 @@ let make_literal_id s =
 	       literal_string=None; id=Some s; buff=None} in
   {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
 
-let make_literal_subrange lo hi = 
-  let result = {t=None;leaf_type=Some LITERAL_SUBRANGE;leaf_data=Some (Array (lo,hi));leaf=None;
-	       literal_string=None; id=None; buff=None} in
-  {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
+let make_literal_subrange = function
+  | (Some rlo, Some rhi) ->
+     (match (rlo.leaf_data, rhi.leaf_data) with
+      | (Some (Int lo), Some (Int hi)) ->
+	 let result = {t=None;leaf_type=Some LITERAL_SUBRANGE;leaf_data=Some (Array (lo,hi));leaf=None;
+		       literal_string=None; id=None; buff=None} in
+	 {op=Some LITERAL;result=Some result;n=0;elements=[];location=None}
+      | _ -> raise (Internal_error "LO/HI of sub-range are not integer types!")
+     )
+  | _ -> raise (Internal_error "Array subranges are not initialized!")
 
 let concat_leaf src op = 
   if (match src.op with Some x -> x | None -> raise (Internal_error (("Source parse tree has type Opcode: " 

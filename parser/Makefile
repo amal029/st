@@ -13,7 +13,7 @@ parser:
 	$(LEX) lexer.mll
 	$(CC) -I $(LANGDIR) -c parser.mli
 	$(CC) -c lexer.ml
-	$(CC) -pp "camlp4o pa_macro.cmo -DDEBUG" -I $(LANGDIR) -c parser.ml
+	$(CC) -I $(LANGDIR) -c parser.ml
 	$(CC) -a lexer.cmx parser.cmx -o parser.cmxa
 
 clean:
