@@ -131,11 +131,9 @@
 %token SR
 %token ST
 %token STEP
-%token STN
 %token STRING
 %token STRUCT
 %token SUB
-%token TASK
 %token THEN
 %token TIME
 %token TIME_OF_DAY
